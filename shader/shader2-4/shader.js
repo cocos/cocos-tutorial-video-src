@@ -38,6 +38,28 @@ function createProgram(gl, vertexShader, fragmentShader){
 }
 
 function main(){
+    // 安装本地服务器 http-server
+    // 全局安装：npm install http-server -g
+    // 本地安装：npm install http-server，本地项目文件夹下会生成 node_module 文件夹
+    // 执行 http-server 生成本地服务器地址
+    // 下方替换上生成的本地服务器地址
+    const images = ['http://192.168.55.93:8080/logo.png', 'http://192.168.55.93:8080/close-icon.png'];
+    const dataList = [];
+    let index = 0;
+    for (let i = 0; i < images.length; i++) {
+        const image = new Image();
+        dataList.push(image);
+        image.src = images[i];
+        image.onload = function () {
+            index++;
+            if(index >= images.length){
+                render(dataList);
+            }
+        }
+    }
+}
+
+function render(images){
     const canvas = document.createElement('canvas');
     document.getElementsByTagName('body')[0].appendChild(canvas);
     canvas.width = 400;
@@ -51,11 +73,14 @@ function main(){
 
     const vertexSource = `
     attribute vec2 a_position;
+    attribute vec2 a_uv;
     attribute vec4 a_color;
 
     varying vec4 v_color;
+    varying vec2 v_uv;
 
     void main(){
+        v_uv = a_uv;
         v_color = a_color;
         gl_Position = vec4(a_position, 0.0, 1.0);
     }
@@ -69,11 +94,18 @@ function main(){
     //     0, 0.5,
     // ];
 
-    const positions = [
-        0, 0,
-        0.7, 0,
-        0, 0.5,
-        0.7, 0.5
+    // const positions = [
+    //     0, 0,
+    //     0.7, 0,
+    //     0, 0.5,
+    //     0.7, 0.5
+    // ];
+
+    const vertexPosUv = [
+        -0.5, -0.7, 0, 0,
+        0.5, -0.7, 1, 0,
+        -0.5, 0.7, 0, 1,
+        0.5, 0.7, 1, 1,
     ];
 
     const colors = [
@@ -114,7 +146,7 @@ function main(){
     // gl.STATIC_DRAW ：数据不会或几乎不会改变。
     // gl.DYNAMIC_DRAW：数据会被改变很多。
     // gl.STREAM_DRAW ：数据每次绘制时都会改变
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexPosUv), gl.STATIC_DRAW);
     // gl.bufferData(gl.ARRAY_BUFFER, arrayBuffer, gl.STATIC_DRAW);
 
     const colorBuffer = gl.createBuffer();
@@ -134,14 +166,19 @@ function main(){
     precision mediump float;
 
     // uniform vec4 u_color;
+    uniform sampler2D u_image0;
+    uniform sampler2D u_image1;
 
     varying vec4 v_color;
+    varying vec2 v_uv;
 
     void main (){
         // 将三角形输出的最终颜色固定为玫红色
         // 这里的四个分量分别代表红（r）、绿（g）、蓝（b）和透明度（alpha）
         // 颜色数值取归一化值。最终绘制的其实就是 [255, 0, 127. 255]
-        gl_FragColor = v_color;
+        vec4 tex1 = texture2D(u_image0, v_uv);
+        vec4 tex2 = texture2D(u_image1, v_uv);
+        gl_FragColor = tex1 * tex2 * v_color;
     }
     `;
 
@@ -171,7 +208,12 @@ function main(){
     // 非 0 则表示同一个属性在数据中的间隔大小，可以理解为步长。这个会在后面的说明中体现
     // offset：属性在缓冲区中每间隔的偏移值，单位是字节
     // gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+
+    const uvAttributeLocation = gl.getAttribLocation(program, 'a_uv');
+    gl.enableVertexAttribArray(uvAttributeLocation);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
     const colorAttributeLocation = gl.getAttribLocation(program, 'a_color');
     gl.enableVertexAttribArray(colorAttributeLocation);
@@ -185,6 +227,27 @@ function main(){
 
     // const vertexColorLocation = gl.getUniformLocation(program, 'u_color');
     // gl.uniform4fv(vertexColorLocation, [Math.random(), Math.random(), Math.random(), 1]);
+
+    if (images.length > 0){
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    }
+
+    for (let j = 0; j < images.length; j++) {
+        const image = images[j];
+        const samplerName = `u_image${j}`;
+        const u_image = gl.getUniformLocation(program, samplerName);
+        gl.uniform1i(u_image, j);
+        const texture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + j);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    }
 
     // gl.drawElements(primitiveType, count, indexType, offset);
     // 部分参数与 gl.drawArrays 一致。indexType：指定元素数组缓冲区中的值的类型。有 gl.UNSIGNED_BYTE、gl.UNSIGNED_SHORT 以及扩展类型
