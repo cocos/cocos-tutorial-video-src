@@ -1,31 +1,21 @@
 
-import { _decorator, Component, Node, Graphics } from 'cc';
+import { _decorator, Component, Node, Graphics, Material, EffectAsset, Sprite } from 'cc';
 const { ccclass, property } = _decorator;
-
-/**
- * Predefined variables
- * Name = Draw
- * DateTime = Thu Sep 30 2021 16:36:00 GMT+0800 (China Standard Time)
- * Author = mywayday
- * FileBasename = Draw.ts
- * FileBasenameNoExtension = Draw
- * URL = db://assets/Draw.ts
- * ManualUrl = https://docs.cocos.com/creator/3.3/manual/en/
- *
- */
 
 @ccclass('Draw')
 export class Draw extends Component {
-    // [1]
-    // dummy = '';
-
-    // [2]
-    // @property
-    // serializableDummy = 0;
+    @property(EffectAsset)
+    effect: EffectAsset = null!;
 
     start () {
-        const g = this.getComponent(Graphics);
-        g.fillRect(0, 0, 400, 300);
+        // const g = this.getComponent(Graphics);
+        // g.fillRect(0, 0, 400, 300);
+
+        const mat = new Material();
+        mat.initialize({ effectAsset: this.effect, defines:{ USE_TEXTURE: true } });
+
+        const spComp = this.getComponent(Sprite);
+        spComp.customMaterial = mat;
     }
 
     // update (deltaTime: number) {
