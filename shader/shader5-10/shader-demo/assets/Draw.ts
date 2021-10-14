@@ -11,11 +11,12 @@ export class Draw extends Component {
         // const g = this.getComponent(Graphics);
         // g.fillRect(0, 0, 400, 300);
 
-        const mat = new Material();
-        mat.initialize({ effectAsset: this.effect, defines:{ USE_TEXTURE: true } });
+        // const mat = new Material();
+        // mat.initialize({ effectAsset: this.effect, defines:{ USE_TEXTURE: true } });
 
         const spComp = this.getComponent(Sprite);
-        spComp.customMaterial = mat;
+        const mat = spComp.customMaterial;
+        mat.setProperty('dissolveThreshold', 0.6);
     }
 
     // update (deltaTime: number) {
